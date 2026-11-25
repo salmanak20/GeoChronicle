@@ -1,0 +1,81 @@
+# Environment configuration and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+.secrets/
+secrets/
+**/credentials.json
+**/*credentials*.yaml
+**/*credentials*.yml
+*.p12
+*.pfx
+*.key
+*.pem
+*.jks
+*.keystore
+
+# Node.js and frontend tooling
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.vite/
+coverage/
+
+# Python tooling and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.python-version.local
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+*.egg-info/
+
+# Rust and Tauri build output
+**/target/
+
+# Common build output
+/build/
+/dist/
+
+# IDE, editor, and operating system files
+.vscode/
+.idea/
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local databases, logs, caches, and temporary files
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.db-shm
+*.db-wal
+*.log
+*.tmp
+*.temp
+*.part
+*.partial
+.cache/
+
+# Local projects and generated media/output directories
+/projects/
+/renders/
+/outputs/
+/generated/
+/media-cache/
+/assets/generated/
