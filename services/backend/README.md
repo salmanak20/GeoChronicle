@@ -1,6 +1,6 @@
-# GeoChronicle Backend (Phase 3)
+# GeoChronicle Backend (Phase 4)
 
-Python 3.12 FastAPI service launched and supervised by the Tauri Rust process in development. It provides authenticated project management backed by SQLite, in addition to health/readiness and migration workflows. AI and media production workflows are not included.
+Python 3.12 FastAPI service launched and supervised by the Tauri Rust process in development. It provides authenticated project management and research/content intelligence backed by SQLite, in addition to health/readiness and migration workflows. Image/audio generation and video rendering are not included.
 
 ## Setup and commands
 
@@ -15,7 +15,7 @@ py -3.12 -m venv .venv  # only if the repository venv does not exist
 
 Start the Tauri desktop shell from `apps/desktop` with `npm run tauri dev`. Rust launches the exact interpreter under this `.venv`, generates a fresh per-launch token, selects an OS-assigned port, and waits for authenticated readiness. Binding is loopback-only. Windows socket activation is not used: because the selected port is released before Uvicorn binds, a collision can occur. Rust detects when its launched child exits before readiness and retries up to four times; every request must authenticate with the random token, so the app will not attach to an unrelated listener. Retry exhaustion reports an error in Settings.
 
-The token is passed in `GEOCHRONICLE_AUTH_TOKEN` to the backend process and held by Rust. It is required by `/api/v1/health`, `/api/v1/health/ready`, all `/api/v1/projects` endpoints, and `POST /api/v1/internal/shutdown`; the shutdown endpoint rejects requests if no token is configured. React receives project data, status, and safe error text through Tauri IPC only.
+The token is passed in `GEOCHRONICLE_AUTH_TOKEN` to the backend process and held by Rust. It is required by `/api/v1/health`, `/api/v1/health/ready`, all `/api/v1/projects` and `/api/v1/content` endpoints, and `POST /api/v1/internal/shutdown`; the shutdown endpoint rejects requests if no token is configured. React receives project/content data, status, and safe error text through Tauri IPC only.
 
 Tauri exit requests authenticated shutdown and waits up to five seconds for the owned Python child. Rust then kills and reaps only that exact child if needed. Startup is bounded to 20 seconds per attempt. The Settings page exposes status refresh and retry; the retry IPC command is available only for the manager's stopped/error lifecycle.
 
@@ -28,6 +28,21 @@ The desktop redirects backend stdout/stderr to `%LOCALAPPDATA%\GeoChronicle\logs
 ### Project schema
 
 `Project` retains its Phase 2 integer primary key. It stores name (required, max 200), optional topic (max 500) and description (max 5,000), status (`draft`, `in_progress`, `completed`, `archived`), optional target duration (30–7,200 seconds), aspect ratio (`16:9`, `9:16`, `1:1`, `4:3`), language tag, visual style (`hybrid`, `cinematic`, `animated_maps`), and UTC creation/update timestamps. A topic index and database status constraint support listing and integrity. Alembic revision `0002_project_management` adds the new fields with backward-compatible defaults; it does not remove existing rows.
+
+### Research and content intelligence
+
+Migration `0003_content_intelligence` adds research sessions, deduplicated source records and provenance, claims and source relationships, fact-check suggestions, script documents/sections/versions, storyboard scenes, and narration segments. Existing project rows remain intact. On startup, sessions left `running` by a prior process are marked failed for recovery.
+
+Content routes below `/api/v1/content` require the same bearer authentication as project routes. They support provider status/configuration, research sessions and source details, claim review and fact-check suggestions, script versions/section editing/approval, storyboard generation/editing, and narration segmentation. An AI fact-check is stored as a suggestion; only the reviewer endpoint changes a claim's verification status. Editing/regenerating a script section revokes approval and removes narration derived from changed content. Narration planning accepts only scenes linked to approved script sections.
+
+Research search uses `SearchProvider`; JSON generation uses `AIProvider`. `none` disables either provider. Configure optional Tavily and OpenAI-compatible adapters with non-secret settings through Content Studio or `.env`. Set secrets in Windows Credential Manager using the backend's Windows account:
+
+```powershell
+keyring set GeoChronicle tavily
+keyring set GeoChronicle openai
+```
+
+Secrets are not stored in SQLite or sent to React. Local review, script editing, storyboard editing, and narration planning work without provider credentials. Tests use fake adapters and do not make paid external requests.
 
 ### Project API
 
@@ -56,4 +71,4 @@ cargo test
 
 ## Limitations
 
-The Python runtime and backend are not bundled as a Tauri sidecar. Release verification currently builds an unbundled executable; installed-app backend discovery and packaging are not implemented or claimed. Project management is implemented; AI providers, maps, generated media, and video generation remain out of scope.
+The Python runtime and backend are not bundled as a Tauri sidecar. Release verification currently builds an unbundled executable; installed-app backend discovery and packaging are not implemented or claimed. Research and content workflows are implemented; maps, generated media, image/speech generation, and video rendering remain out of scope.

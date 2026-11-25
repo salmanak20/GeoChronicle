@@ -13,7 +13,3 @@ def upgrade():
  op.create_index('ix_provider_configurations_provider_name','provider_configurations',['provider_name'])
 def downgrade():
  op.drop_table('provider_configurations');op.drop_table('application_settings');op.drop_index('ix_projects_status',table_name='projects');op.drop_index('ix_projects_name',table_name='projects');op.drop_table('projects')
-
-
-
-\n

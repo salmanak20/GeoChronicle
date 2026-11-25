@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Dashboard } from "./features/dashboard/Dashboard";
 import { ProjectWorkspace } from "./features/projects/ProjectWorkspace";
+import { ContentWorkspace } from "./features/content/ContentWorkspace";
 import type { Project } from "./types/project";
 import "./App.css";
 
-type Page = "Dashboard" | "Projects" | "Create Video" | "Media Library" | "Templates" | "Settings";
+type Page = "Dashboard" | "Projects" | "Content Studio" | "Create Video" | "Media Library" | "Templates" | "Settings";
 type BackendStatus = { state: "starting" | "ready" | "stopping" | "stopped" | "error"; database_ready: boolean; error: string | null };
 const navigation: { label: Page; icon: string }[] = [
   { label: "Dashboard", icon: "grid" }, { label: "Projects", icon: "folder" },
+  { label: "Content Studio", icon: "spark" },
   { label: "Create Video", icon: "spark" }, { label: "Media Library", icon: "image" },
   { label: "Templates", icon: "layers" }, { label: "Settings", icon: "settings" },
 ];
@@ -34,6 +36,7 @@ function App() {
   const openNewProject = () => { setPage("Projects"); setProjectMode("create"); setProjectId(undefined); };
   const openProjects = () => { setPage("Projects"); setProjectMode("list"); setProjectId(undefined); };
   const openProject = (project: Project) => { setPage("Projects"); setProjectMode("list"); setProjectId(project.id); };
+  const openContentForProject = (project: Project) => { setProjectId(project.id); setPage("Content Studio"); };
   const goToPage = (next: Page) => { setPage(next); if (next === "Projects") { setProjectMode("list"); setProjectId(undefined); } };
 
   return <div className={`app-shell${theme === "light" ? " light-theme" : ""}`}>
@@ -46,10 +49,11 @@ function App() {
     <main className="main-area">
       <header className="topbar"><div className="breadcrumbs"><span>Workspace</span><span className="crumb-slash">/</span><strong>{page}</strong></div><div className="top-actions"><button className="status-pill" onClick={() => void refreshBackend()} title={backend.error || "Refresh backend status"}><i className={`status-${backend.state}`} /> Backend {backend.state === "ready" ? `connected · DB ${backend.database_ready ? "ready" : "unavailable"}` : backendLabel(backend.state)}</button><button className="icon-button theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Toggle theme" title="Toggle theme">◐</button><button className="top-avatar" onClick={() => goToPage("Settings")} aria-label="Open settings">GC</button></div></header>
       {page === "Dashboard" && <Dashboard key={revision} onCreate={openNewProject} onOpenProject={openProject} onViewProjects={openProjects} />}
-      {page === "Projects" && <ProjectWorkspace key={`${projectMode}:${projectId ?? "none"}`} initialView={projectMode} initialProjectId={projectId} onDataChanged={() => setRevision(value => value + 1)} />}
+      {page === "Projects" && <ProjectWorkspace key={`${projectMode}:${projectId ?? "none"}`} initialView={projectMode} initialProjectId={projectId} onDataChanged={() => setRevision(value => value + 1)} onOpenContent={openContentForProject} />}
+      {page === "Content Studio" && <ContentWorkspace key={projectId ?? "choose-project"} projectId={projectId} onSelectProject={openContentForProject} onBack={() => projectId ? openProject({ id: projectId } as Project) : openProjects()} />}
       {page === "Settings" && <Settings backend={backend} refresh={refreshBackend} retry={retryBackend} />}
       {page !== "Dashboard" && page !== "Projects" && page !== "Settings" && <Placeholder page={page} onBack={() => goToPage("Dashboard")} onCreate={openNewProject} />}
-      <footer className="app-footer"><span><BrandMark /> GeoChronicle <i /> Local project workspace</span><span>PHASE 3 <b>·</b> PROJECT MANAGEMENT</span></footer>
+      <footer className="app-footer"><span><BrandMark /> GeoChronicle <i /> Local project workspace</span><span>PHASE 4 <b>·</b> CONTENT INTELLIGENCE</span></footer>
     </main>
   </div>;
 }

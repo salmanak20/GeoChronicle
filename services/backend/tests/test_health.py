@@ -33,5 +33,3 @@ def test_shutdown_requires_valid_launch_token(client):
     assert client.post("/api/v1/internal/shutdown", headers={"X-Geo-Token": "test-only-token"}).status_code == 202
     assert server.should_exit
     del client.app.state.uvicorn_server
-
-\n

@@ -164,3 +164,11 @@ Known limitations: the native release is unbundled and does not carry the Python
 ### Git
 
 - Branch: `main`. The repository had no commits and no configured remote at the start of this milestone; existing Phase 1, Phase 2, and Phase 3 files were therefore untracked together. The user subsequently instructed to push the files, superseding the attachment's initial no-push instruction. This log entry was drafted before the first commit; the final delivery records the actual commit and push outcome. No existing commit will be amended or rewritten.
+
+## Phase 4 — Research, Scriptwriting, and Content Intelligence (2026-11-25)
+
+**Status: Complete.** Added authenticated research sessions and source provenance, evidence-linked claims and reviewer-controlled verification, AI fact-check suggestions, structured/versioned scripts with section editing and approval, storyboards linked to scripts and researched references, and narration segmentation with paragraph indexes and duration estimates. Provider credentials remain in Windows Credential Manager. Research and AI generation adapters are optional and replaceable; external calls are bounded and outputs validated. Migration `0003_content_intelligence` preserves existing projects and supports downgrade/upgrade.
+
+Validation: backend `.venv\Scripts\python.exe -m pytest -q` — 44 passed, one upstream deprecation warning; disposable SQLite `alembic upgrade head` and `alembic check` — passed, no new operations detected; frontend `npm test -- --reporter=dot` — 9 passed; `npm run typecheck` and `npm run build` — passed; `npm audit --audit-level=low` — 0 vulnerabilities; Rust `cargo fmt -- --check`, `cargo check`, `cargo test` — passed (23 unit tests and 2 backend lifecycle integration tests). Native Tauri dev startup showed `Backend connected · DB ready` and the empty local project workspace using a temporary database. No external provider credentials were configured, so remote research was not exercised end-to-end; adapter behavior is covered by deterministic tests.
+
+Known limitations: no image/speech synthesis, map workspace, video timeline/rendering, or packaged Python sidecar. Real provider availability depends on user-supplied credentials and network connectivity. The development-only Python backend remains unbundled in release builds.

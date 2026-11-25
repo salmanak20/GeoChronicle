@@ -1,8 +1,8 @@
 # GeoChronicle
 
-GeoChronicle is a planned Windows desktop application for producing geopolitical and historical documentary videos. The product is intended to combine animated maps, cinematic visuals, generated narration, music, sound effects, subtitles, and locally rendered video.
+GeoChronicle is a local-first Windows desktop application for researching and developing geopolitical and historical documentary videos. Phase 4 adds source-grounded AI research, human-reviewed claims, versioned scripts, storyboards, and narration planning. Maps, media generation, and final video rendering are later work.
 
-**Current status:** Phases 1 and 2 are implemented. Phase 3 adds SQLite-backed project management across the FastAPI service, typed Tauri IPC, and React desktop interface. AI, maps, media generation, and rendering remain future work.
+**Current status:** Phases 1–4 are implemented: local FastAPI service, authenticated typed Tauri IPC, SQLite persistence, research and source provenance, claim review, scripts, storyboards, and narration segmentation.
 
 ## Planned technology stack
 
@@ -11,13 +11,13 @@ GeoChronicle is a planned Windows desktop application for producing geopolitical
 - **Media:** FFmpeg, FFprobe, MapLibre GL, GeoJSON, replaceable AI image and text-to-speech providers
 - **Quality:** Pytest, Vitest, React Testing Library, Ruff, TypeScript checks
 
-This is the target stack, not a list of dependencies currently installed in the repository.
+The repository includes an implemented subset of this stack; see phase notes below for current scope.
 
 ## Architecture overview
 
 The planned application is a local-first modular monolith. The Tauri desktop shell owns the native window and operating-system integration. React/TypeScript provides the production interface. A separately packaged local FastAPI process owns application workflows, persistence, jobs, provider adapters, and render orchestration. The frontend/backend boundary and proposed local communication are described in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-Projects and generated assets are intended to stay on the user's machine. FFmpeg will perform final video assembly locally. AI capabilities will sit behind replaceable provider adapters; secret values are intended for Windows Credential Manager rather than source files or logs.
+Projects and research records stay on the user's machine. AI capabilities use replaceable provider adapters; secrets are read server-side from Windows Credential Manager through Python keyring and are not stored in SQLite, source files, or logs. Remote providers receive the topic and source excerpts submitted for the requested operation.
 
 ## Repository layout
 
@@ -56,7 +56,7 @@ Tauri's current Windows prerequisites include the Microsoft C++ Build Tools and 
 
 ## Initial setup
 
-The repository is currently local at `S:\Projects\GeoChronicle` and has no remote URL or commits. In PowerShell:
+The repository workspace is `S:\Projects\GeoChronicle`. In PowerShell:
 
 ```powershell
 Set-Location 'S:\Projects\GeoChronicle'
@@ -76,7 +76,13 @@ The desktop shell dependencies are declared in `apps/desktop/package.json` and l
 
 ## Desktop shell
 
-The current app provides a data-backed dashboard and project workflows (create, browse, search, filter, sort, paginate, view, edit, and delete). Create Video, Media Library, and Templates remain explicitly labeled placeholders. Native app development requires the Tauri Windows prerequisites listed above.
+The current app provides a data-backed dashboard and project workflows (create, browse, search, filter, sort, paginate, view, edit, and delete), plus the Phase 4 Content Studio. Create Video, Media Library, and Templates remain explicitly labeled placeholders. Native app development requires the Tauri Windows prerequisites listed above.
+
+## Phase 4: research and content intelligence
+
+Content Studio supports research sessions with deduplicated source provenance, claims linked to source evidence, reviewer-controlled claim status, AI fact-check suggestions, structured script drafts and versions, per-section edits/regeneration, storyboard scenes linked to script sections and researched IDs, and sentence-level narration planning with paragraph indexes and duration estimates. Script edits invalidate approval and dependent narration. Narration requires approved linked script sections.
+
+Tavily search and OpenAI-compatible JSON generation are optional adapters. Configure provider IDs/endpoints/model in the app or `.env`; install secrets with `keyring set GeoChronicle tavily` and `keyring set GeoChronicle openai`. Without credentials, local review/editing workflows remain available. See [backend setup](services/backend/README.md). Migration `0003_content_intelligence` adds the new tables while preserving existing projects. The Python backend is not bundled into a release executable.
 
 
 ## Phase 2 backend foundation

@@ -1,6 +1,6 @@
 # Development Guidelines
 
-These rules apply to the implemented Phase 1–3 foundation and later phases. The current repository includes the Tauri UI, local FastAPI lifecycle management, SQLite persistence, and project CRUD.
+These rules apply to the implemented Phase 1–4 foundation and later phases. The current repository includes the Tauri UI, local FastAPI lifecycle management, SQLite persistence, project management, and research/content workflows.
 
 ## Coding standards
 
@@ -10,6 +10,8 @@ These rules apply to the implemented Phase 1–3 foundation and later phases. Th
 - Prefer small cohesive modules and explicit interfaces. Keep the initial deployment a modular monolith; avoid speculative abstraction and premature service splits.
 - Keep backend and frontend contracts versioned and aligned. Do not duplicate business rules across layers.
 - Use replaceable adapters for each external AI capability. Keep provider-specific details inside adapters.
+- Treat generated research and fact-check results as suggestions. Preserve source provenance and require explicit human review for claim verification and script section approval.
+- Validate AI output against project-scoped source, claim, and script IDs before persistence. Bound provider timeouts, response sizes, retries, and stored text.
 - Avoid adding dependencies unless they address a concrete need; record non-obvious architecture or dependency decisions.
 
 ## Testing and quality
@@ -43,7 +45,7 @@ These rules apply to the implemented Phase 1–3 foundation and later phases. Th
 ## Security and privacy
 
 - Never hardcode API keys, tokens, passwords, or private certificates. Never commit `.env` files or credentials.
-- Use Windows Credential Manager or a suitable OS-backed facility for future provider secrets; expose only provider selection and non-secret settings to the frontend.
+- Use Windows Credential Manager via keyring for provider secrets; expose only provider selection and non-secret settings to the frontend.
 - Do not log credentials, authorization headers, private prompts, or sensitive user data. Redact exceptions from external providers before logging.
 - Validate all user input, inter-process messages, GeoJSON, file paths, and external API responses.
 - Bind the future backend to loopback only, authenticate its local client, validate origins, and expose no unnecessary local/network service.

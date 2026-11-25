@@ -355,7 +355,7 @@ impl BackendManager {
             .as_ref()
             .ok_or_else(|| "Backend is disconnected".to_string())?;
         let client = reqwest::blocking::Client::builder()
-            .timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(90))
             .build()
             .map_err(|_| "Backend HTTP client unavailable".to_string())?;
         let mut request = client
@@ -649,6 +649,408 @@ fn project_stats(manager: tauri::State<BackendManager>) -> Result<ProjectStats, 
     manager.api_request(reqwest::Method::GET, "/api/v1/projects/stats", &[], None)
 }
 
+type ContentResponse = serde_json::Value;
+
+#[derive(Serialize, Deserialize)]
+struct SceneUpdateInput {
+    title: String,
+    script_section_key: Option<String>,
+    narration_text: String,
+    description: String,
+    duration_seconds: i32,
+    visual_direction: String,
+    historical_events: Vec<String>,
+    geographic_references: Vec<String>,
+    claim_ids: Vec<i64>,
+    source_ids: Vec<i64>,
+    transition_suggestion: Option<String>,
+}
+
+#[tauri::command]
+fn provider_status(manager: tauri::State<BackendManager>) -> Result<ContentResponse, String> {
+    manager.api_request(reqwest::Method::GET, "/api/v1/providers", &[], None)
+}
+
+#[tauri::command]
+fn save_provider_configuration(
+    manager: tauri::State<BackendManager>,
+    search_provider: Option<String>,
+    search_endpoint: Option<String>,
+    ai_provider: Option<String>,
+    ai_endpoint: Option<String>,
+    ai_model: Option<String>,
+) -> Result<ContentResponse, String> {
+    let mut body = serde_json::Map::new();
+    for (key, value) in [
+        ("search_provider", search_provider),
+        ("search_endpoint", search_endpoint),
+        ("ai_provider", ai_provider),
+        ("ai_endpoint", ai_endpoint),
+        ("ai_model", ai_model),
+    ] {
+        if let Some(value) = value {
+            body.insert(key.into(), serde_json::Value::String(value));
+        }
+    }
+    manager.api_request(
+        reqwest::Method::PATCH,
+        "/api/v1/providers/configuration",
+        &[],
+        Some(body.into()),
+    )
+}
+
+#[tauri::command]
+fn start_research(
+    manager: tauri::State<BackendManager>,
+    project_id: i64,
+    topic: Option<String>,
+    source_limit: u8,
+    include_primary_sources: bool,
+    region: Option<String>,
+    date_range: Option<String>,
+) -> Result<ContentResponse, String> {
+    if !(1..=10).contains(&source_limit) {
+        return Err("Source count must be between 1 and 10".into());
+    }
+    let body = serde_json::json!({"topic": topic, "source_limit": source_limit, "include_primary_sources": include_primary_sources, "region": region, "date_range": date_range});
+    manager.api_request(
+        reqwest::Method::POST,
+        &format!("/api/v1/projects/{project_id}/research-sessions"),
+        &[],
+        Some(body),
+    )
+}
+
+#[tauri::command]
+fn research_status(
+    manager: tauri::State<BackendManager>,
+    session_id: i64,
+) -> Result<ContentResponse, String> {
+    manager.api_request(
+        reqwest::Method::GET,
+        &format!("/api/v1/research-sessions/{session_id}"),
+        &[],
+        None,
+    )
+}
+
+#[tauri::command]
+fn project_research_sessions(
+    manager: tauri::State<BackendManager>,
+    project_id: i64,
+) -> Result<ContentResponse, String> {
+    manager.api_request(
+        reqwest::Method::GET,
+        &format!("/api/v1/projects/{project_id}/research-sessions"),
+        &[],
+        None,
+    )
+}
+
+#[tauri::command]
+fn research_sources(
+    manager: tauri::State<BackendManager>,
+    session_id: i64,
+    page: u32,
+    page_size: u32,
+) -> Result<ContentResponse, String> {
+    let query = vec![
+        ("page".into(), page.to_string()),
+        ("page_size".into(), page_size.min(100).to_string()),
+    ];
+    manager.api_request(
+        reqwest::Method::GET,
+        &format!("/api/v1/research-sessions/{session_id}/sources"),
+        &query,
+        None,
+    )
+}
+
+#[tauri::command]
+fn source_detail(
+    manager: tauri::State<BackendManager>,
+    source_id: i64,
+) -> Result<ContentResponse, String> {
+    manager.api_request(
+        reqwest::Method::GET,
+        &format!("/api/v1/sources/{source_id}"),
+        &[],
+        None,
+    )
+}
+
+#[tauri::command]
+fn research_claims(
+    manager: tauri::State<BackendManager>,
+    session_id: i64,
+) -> Result<ContentResponse, String> {
+    manager.api_request(
+        reqwest::Method::GET,
+        &format!("/api/v1/research-sessions/{session_id}/claims"),
+        &[],
+        None,
+    )
+}
+
+#[tauri::command]
+fn review_claim(
+    manager: tauri::State<BackendManager>,
+    claim_id: i64,
+    verification_status: Option<String>,
+    reviewer_notes: Option<String>,
+) -> Result<ContentResponse, String> {
+    let body = serde_json::json!({"verification_status": verification_status, "reviewer_notes": reviewer_notes});
+    manager.api_request(
+        reqwest::Method::PATCH,
+        &format!("/api/v1/claims/{claim_id}"),
+        &[],
+        Some(body),
+    )
+}
+
+#[tauri::command]
+fn fact_check_claim(
+    manager: tauri::State<BackendManager>,
+    claim_id: i64,
+) -> Result<ContentResponse, String> {
+    manager.api_request(
+        reqwest::Method::POST,
+        &format!("/api/v1/claims/{claim_id}/fact-check"),
+        &[],
+        Some(serde_json::json!({})),
+    )
+}
+
+#[tauri::command]
+fn fact_check_results(
+    manager: tauri::State<BackendManager>,
+    claim_id: i64,
+) -> Result<ContentResponse, String> {
+    manager.api_request(
+        reqwest::Method::GET,
+        &format!("/api/v1/claims/{claim_id}/fact-check-results"),
+        &[],
+        None,
+    )
+}
+
+#[tauri::command]
+fn generate_script(
+    manager: tauri::State<BackendManager>,
+    project_id: i64,
+    research_session_id: Option<i64>,
+    audience: String,
+    narrative_structure: String,
+) -> Result<ContentResponse, String> {
+    let body = serde_json::json!({"research_session_id": research_session_id, "audience": audience, "narrative_structure": narrative_structure});
+    manager.api_request(
+        reqwest::Method::POST,
+        &format!("/api/v1/projects/{project_id}/scripts"),
+        &[],
+        Some(body),
+    )
+}
+
+#[tauri::command]
+fn project_scripts(
+    manager: tauri::State<BackendManager>,
+    project_id: i64,
+) -> Result<ContentResponse, String> {
+    manager.api_request(
+        reqwest::Method::GET,
+        &format!("/api/v1/projects/{project_id}/scripts"),
+        &[],
+        None,
+    )
+}
+
+#[tauri::command]
+fn get_script(
+    manager: tauri::State<BackendManager>,
+    script_id: i64,
+) -> Result<ContentResponse, String> {
+    manager.api_request(
+        reqwest::Method::GET,
+        &format!("/api/v1/scripts/{script_id}"),
+        &[],
+        None,
+    )
+}
+
+fn valid_section_key(key: &str) -> bool {
+    matches!(
+        key,
+        "hook"
+            | "introduction"
+            | "historical_background"
+            | "main_developments"
+            | "turning_points"
+            | "geopolitical_implications"
+            | "conclusion"
+    )
+}
+
+#[tauri::command]
+fn update_script_section(
+    manager: tauri::State<BackendManager>,
+    script_id: i64,
+    section_key: String,
+    content: String,
+    change_note: String,
+) -> Result<ContentResponse, String> {
+    if !valid_section_key(&section_key) || content.len() > 48_000 {
+        return Err("Invalid script section update".into());
+    }
+    let body = serde_json::json!({"content": content, "change_note": change_note});
+    manager.api_request(
+        reqwest::Method::PATCH,
+        &format!("/api/v1/scripts/{script_id}/sections/{section_key}"),
+        &[],
+        Some(body),
+    )
+}
+
+#[tauri::command]
+fn set_script_section_approval(
+    manager: tauri::State<BackendManager>,
+    script_id: i64,
+    section_key: String,
+    approved: bool,
+) -> Result<ContentResponse, String> {
+    if !valid_section_key(&section_key) {
+        return Err("Invalid script section".into());
+    }
+    let body = serde_json::json!({"approved": approved});
+    manager.api_request(
+        reqwest::Method::PATCH,
+        &format!("/api/v1/scripts/{script_id}/sections/{section_key}/approval"),
+        &[],
+        Some(body),
+    )
+}
+
+#[tauri::command]
+fn regenerate_script_section(
+    manager: tauri::State<BackendManager>,
+    script_id: i64,
+    section_key: String,
+) -> Result<ContentResponse, String> {
+    if !valid_section_key(&section_key) {
+        return Err("Invalid script section".into());
+    }
+    manager.api_request(
+        reqwest::Method::POST,
+        &format!("/api/v1/scripts/{script_id}/sections/{section_key}/regenerate"),
+        &[],
+        Some(serde_json::json!({})),
+    )
+}
+
+#[tauri::command]
+fn script_versions(
+    manager: tauri::State<BackendManager>,
+    script_id: i64,
+) -> Result<ContentResponse, String> {
+    manager.api_request(
+        reqwest::Method::GET,
+        &format!("/api/v1/scripts/{script_id}/versions"),
+        &[],
+        None,
+    )
+}
+
+#[tauri::command]
+fn generate_storyboard(
+    manager: tauri::State<BackendManager>,
+    script_id: i64,
+) -> Result<ContentResponse, String> {
+    manager.api_request(
+        reqwest::Method::POST,
+        &format!("/api/v1/scripts/{script_id}/storyboards"),
+        &[],
+        Some(serde_json::json!({})),
+    )
+}
+
+#[tauri::command]
+fn script_storyboards(
+    manager: tauri::State<BackendManager>,
+    script_id: i64,
+) -> Result<ContentResponse, String> {
+    manager.api_request(
+        reqwest::Method::GET,
+        &format!("/api/v1/scripts/{script_id}/storyboards"),
+        &[],
+        None,
+    )
+}
+
+#[tauri::command]
+fn update_storyboard_scene(
+    manager: tauri::State<BackendManager>,
+    scene_id: i64,
+    payload: SceneUpdateInput,
+) -> Result<ContentResponse, String> {
+    let body =
+        serde_json::to_value(payload).map_err(|_| "Invalid storyboard scene update".to_string())?;
+    manager.api_request(
+        reqwest::Method::PATCH,
+        &format!("/api/v1/storyboard-scenes/{scene_id}"),
+        &[],
+        Some(body),
+    )
+}
+
+#[tauri::command]
+fn prepare_narration(
+    manager: tauri::State<BackendManager>,
+    storyboard_id: i64,
+    words_per_minute: u16,
+) -> Result<ContentResponse, String> {
+    if !(80..=250).contains(&words_per_minute) {
+        return Err("Narration speech rate must be between 80 and 250 words per minute".into());
+    }
+    manager.api_request(
+        reqwest::Method::POST,
+        &format!("/api/v1/storyboards/{storyboard_id}/narration"),
+        &[],
+        Some(serde_json::json!({"words_per_minute": words_per_minute})),
+    )
+}
+
+#[tauri::command]
+fn storyboard_narration(
+    manager: tauri::State<BackendManager>,
+    storyboard_id: i64,
+) -> Result<ContentResponse, String> {
+    manager.api_request(
+        reqwest::Method::GET,
+        &format!("/api/v1/storyboards/{storyboard_id}/narration"),
+        &[],
+        None,
+    )
+}
+
+#[tauri::command]
+fn update_narration_segment(
+    manager: tauri::State<BackendManager>,
+    segment_id: i64,
+    text: String,
+    words_per_minute: u16,
+) -> Result<ContentResponse, String> {
+    if !(80..=250).contains(&words_per_minute) || text.len() > 48_000 {
+        return Err("Invalid narration segment update".into());
+    }
+    let body = serde_json::json!({"text": text, "words_per_minute": words_per_minute});
+    manager.api_request(
+        reqwest::Method::PATCH,
+        &format!("/api/v1/narration-segments/{segment_id}"),
+        &[],
+        Some(body),
+    )
+}
+
 pub fn run() {
     tauri::Builder::default()
         .manage(BackendManager::new())
@@ -660,7 +1062,31 @@ pub fn run() {
             get_project,
             update_project,
             delete_project,
-            project_stats
+            project_stats,
+            provider_status,
+            save_provider_configuration,
+            start_research,
+            research_status,
+            project_research_sessions,
+            research_sources,
+            source_detail,
+            research_claims,
+            review_claim,
+            fact_check_claim,
+            fact_check_results,
+            generate_script,
+            project_scripts,
+            get_script,
+            update_script_section,
+            set_script_section_approval,
+            regenerate_script_section,
+            script_versions,
+            generate_storyboard,
+            script_storyboards,
+            update_storyboard_scene,
+            prepare_narration,
+            storyboard_narration,
+            update_narration_segment
         ])
         .setup(|app| {
             let manager = app.state::<BackendManager>();
@@ -684,6 +1110,34 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn phase4_scene_command_serializes_the_versioned_api_fields() {
+        let scene = SceneUpdateInput {
+            title: "Treaty signing".into(),
+            script_section_key: Some("historical_background".into()),
+            narration_text: "A treaty was signed.".into(),
+            description: "Archival document".into(),
+            duration_seconds: 18,
+            visual_direction: "Slow close-up".into(),
+            historical_events: vec!["Signing".into()],
+            geographic_references: vec!["Europe".into()],
+            claim_ids: vec![7],
+            source_ids: vec![11],
+            transition_suggestion: Some("Fade".into()),
+        };
+        let value = serde_json::to_value(scene).unwrap();
+        assert_eq!(value["duration_seconds"], 18);
+        assert_eq!(value["claim_ids"][0], 7);
+        assert_eq!(value["source_ids"][0], 11);
+        assert_eq!(value["narration_text"], "A treaty was signed.");
+    }
+
+    #[test]
+    fn phase4_script_section_commands_reject_unknown_route_keys() {
+        assert!(valid_section_key("geopolitical_implications"));
+        assert!(!valid_section_key("../projects"));
+    }
     #[test]
     fn initial_state_is_stopped_without_child() {
         let manager = BackendManager::new();

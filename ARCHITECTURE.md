@@ -2,7 +2,7 @@
 
 ## Status
 
-This document records the intended architecture and the implemented Phase 1–3 foundation. Features not listed as implemented remain planned.
+This document records the implemented Phase 1–4 foundation. Features not listed as implemented remain planned.
 
 ## System shape
 
@@ -27,7 +27,7 @@ The service is local-only: it binds to loopback and uses a per-launch secret for
 - Store only references and metadata in SQLite when large binary files belong in the project directory. Resolve and validate paths at the backend boundary.
 - Keep user data local by default. Any future sync or upload behavior must be an explicit product feature.
 
-Project catalog metadata is stored in the `projects` SQLite table. Project assets and generated files are not implemented in this phase.
+Project catalog metadata, research sessions/sources/claims, fact-check suggestions, versioned scripts, storyboards, and narration segments are stored in SQLite. Project assets and generated media files are not implemented in this phase.
 
 ## Background jobs and recovery
 
@@ -35,9 +35,9 @@ Long-running generation and rendering operations will run as persistent backend 
 
 ## AI provider adapters
 
-Define narrow adapter interfaces for text generation, image generation, and speech synthesis. A capability-level router can select among configured providers so the product can use a hybrid strategy and replace providers without changing application workflows. Validate provider responses before storing or passing them to other stages. Apply bounded retries and timeouts only where operations are safe to retry.
+Text research and content generation use narrow `SearchProvider` and `AIProvider` interfaces, with optional Tavily and OpenAI-compatible adapters. Provider selection and non-secret endpoints/model are stored in provider configuration; credentials are read server-side from Windows Credential Manager through keyring. Provider responses are validated and bounded before persistence. Only connection failures before a request is sent receive a bounded retry. Image generation and speech synthesis remain future adapters.
 
-Never place provider secrets in source code, frontend bundles, project documents, databases, or logs. Future secret access should go through Windows Credential Manager (or an equivalent OS-backed credential facility) and should remain server-side. Provider integration is not part of the current milestone.
+Never place provider secrets in source code, frontend bundles, project documents, databases, or logs. Secret access goes through Windows Credential Manager via keyring and remains server-side. Provider requests are optional; tests use deterministic adapters and do not call paid services.
 
 ## Maps and media rendering
 
@@ -55,7 +55,13 @@ Map capture, scene timing, codecs, export presets, and dataset licensing will be
 - Keep local projects in dedicated directories and apply explicit Tauri filesystem capabilities.
 - Use bounded retries, timeouts, cleanup, and durable job recovery where appropriate.
 
-These are architectural constraints for later implementation, not claims about current controls.
+The local API authentication, fixed-origin Tauri IPC, credential handling, and request validation described above are implemented for current workflows. Other constraints apply as remaining media features are added.
+
+## Phase 4 research and content workflows
+
+Authenticated `/api/v1/content` routes provide research-session status and provenance, claims linked to sources, reviewer decisions, AI fact-check suggestions (which never change verification status), structured script versions, section edits and approvals, storyboard scenes with project-scoped source/claim IDs, and narration segmentation. The UI calls these through explicit typed Rust commands; it cannot select arbitrary backend URLs or access the launch token. Startup migrates the schema and marks interrupted research sessions failed. Script edits revoke section approval and delete dependent narration. Narration is eligible only when a scene points to an approved script section.
+
+External provider requests have configured timeouts and response-size bounds. Search sends the topic; the AI adapter receives that topic and returned excerpts. Results are persisted locally in SQLite. Secrets stay in the OS credential store and are never accepted from the React configuration form.
 
 ## Phase 2 implementation (local development)
 
